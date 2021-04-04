@@ -2,10 +2,16 @@ import numpy as np
 
 # TODO:
 	# Make lambda be initialised properly (instead of all 0s)
-	# Get it to loop (currently it only does one iteration), need to start thinking about 
+	# Get it to loop (currently it only does one iteration), need to start thinking about
+	# If we start from all 1s then we end up with something pretty good (as in probability > 0 for L = 1000)
+		# Consider this as an option (could go into some detail about why it was chosen in the report)
+			# i.e. traditionally, Baum-Welch begins from a random set of parameters but in this case, with larger L, the initial probability is too small to even be represented in floating point (so it is truncated to 0). Beginning from 0 probability, the algorithm cannot make any improvements
+			# Although all 1s is not a valid Markov model, it does give the algorithm a starting point from which it is able to build a valid model which produces the sequence with high probability
+			# 10^-300 may sound miniscule but considering that the distribution used to generate X in this case is uniform and (1/4)^1000 ~ 1.14 * 10^-600 it's actually really good
+		# For X = all 1s this gives us probability of 0.991 even for L = 1000
 	# Test it
 		# Try testing it by building a markov model (randomly) then generating a sequence using that.
-		# Probably generating them randomly is what's messing it up (consider probabilities of specific uniformly random sequences)
+			# Probably generating them randomly is what's messing it up (consider probabilities of specific uniformly random sequences)
 	# Bugs:
 		# gamma[l] sometimems sums to 0 (before normalisation) (I've patched this by setting gamma[l] to 1 in this case)
 		# same for xi[l]
@@ -28,7 +34,15 @@ alphabet_size = 4
 X = np.random.randint(0, alphabet_size / 2, (L), dtype=int)
 #X = np.zeros((L), dtype=int)
 
-pi = np.random.uniform(0, 1, (k))
+pi = np.ones((k))
+m = np.ones((k,k))
+e = np.ones((k,alphabet_size))
+
+'''pi = np.full((k), 1/k)
+m = np.full((k,k), 1/k)
+e = np.full((k,alphabet_size), 1/alphabet_size)'''
+
+'''pi = np.random.uniform(0, 1, (k))
 pi_s = pi.sum()
 for i in range(k):
 	pi[i] /= pi_s
@@ -43,7 +57,7 @@ e = np.random.uniform(0, 1, (k,alphabet_size))
 for i in range(k):
 	s = e[i].sum()
 	for j in range(alphabet_size):
-		e[i][j] /= s
+		e[i][j] /= s'''
 
 print(viterbis())
 
