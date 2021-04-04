@@ -3,6 +3,7 @@ import numpy as np
 # TODO:
 	# Make lambda be initialised properly (instead of all 0s)
 	# Get it to loop (currently it only does one iteration), need to start thinking about
+	# Try researching Baum-Welch intialisation
 	# If we start from all 1s then we end up with something pretty good (as in probability > 0 for L = 1000)
 		# Consider this as an option (could go into some detail about why it was chosen in the report)
 			# i.e. traditionally, Baum-Welch begins from a random set of parameters but in this case, with larger L, the initial probability is too small to even be represented in floating point (so it is truncated to 0). Beginning from 0 probability, the algorithm cannot make any improvements
