@@ -24,30 +24,16 @@ def viterbis():
 			v[l][i] = e[l][X[i]] * np.array([v[s][i - 1] * m[s][l] for s in range(k)]).max()
 	return np.array([v[l][L - 1] for l in range(k)]).max()
 
-k = 15
-L = 100
-alphabet_size = 10
+k = 10
+L = 1000
+alphabet_size = 4
 
-epsilon = 1.00001
-
-#X = np.random.randint(0, alphabet_size, (L), dtype=int)
-X = np.array([i % alphabet_size for i in range(L)])
+X = np.random.randint(0, alphabet_size, (L), dtype=int)
+#X = np.array([i % alphabet_size for i in range(L)])
 
 #pi = np.ones((k))
 #m = np.ones((k,k))
 #e = np.ones((k,alphabet_size))
-
-'''pi = np.array([1, 0, 0, 0], dtype=float)
-
-m = np.array([	[0, 1, 0, 0],
-				[0, 0, 1, 0],
-				[0, 0, 0, 1],
-				[1, 0, 0, 0]], dtype=float)
-
-e = np.array([	[1, 0, 0, 0],
-				[0, 1, 0, 0],
-				[0, 0, 1, 0],
-				[0, 0, 0, 1]], dtype=float)'''
 
 '''pi = np.full((k), 1/k)
 m = np.full((k,k), 1/k)
@@ -73,8 +59,8 @@ t = 0
 p = 0
 while True:
 	t += 1
-	print(t, p)
 	alpha = np.zeros((L,k))
+	unscaled_alpha = np.zeros((L, k))
 	beta = np.zeros((L,k))
 	gamma = np.zeros((L,k))
 	xi = np.zeros((L,k,k))
@@ -91,12 +77,15 @@ while True:
 			for j in range(k):
 				s += alpha[l - 1][j] * m[j][i]
 			alpha[l][i] = e[i][X[l]] * s
+			unscaled_alpha[l][i] = e[i][X[l]] * s
+		alpha[l] /= alpha[l].sum()
 	for l in range(L - 2, -1, -1):
 		for i in range(k):
 			s = 0
 			for j in range(k):
 				s += beta[l+1][j] * m[i][j] * e[j][X[l+1]]
 			beta[l][i] = s
+		beta[l] /= beta[l].sum()
 	gamma = alpha * beta
 	for l in range(L):
 		s = gamma[l].sum()
@@ -137,9 +126,14 @@ while True:
 				e[i][b] = s2 / s
 	for i in range(k):
 		m[i] /= m[i].sum()
-	new_p = alpha[L - 1].sum()
-	if p > 0 and new_p / p <= epsilon:
+	new_p = unscaled_alpha[L - 1].sum()
+	if new_p <= p:
 		break
+	print(t, p)
 	p = new_p
 
-print(alpha[L - 1].sum())
+print(p)
+print()
+print(pi)
+print(m)
+print(e)
