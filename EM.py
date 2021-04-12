@@ -3,33 +3,65 @@ import numpy as np
 # This whole thing doesn't work
 
 # TODO:
-	# Something is wrong with my implementation of Viterbi's
-		# But I'm fairly sure (logically) that alpha[L - 1].sum() is the value I'm looking for anyway (ofc at the end of an iteration)
 	# Try researching Baum-Welch intialisation
 	# Test it
-		# Try testing it by building a markov model (randomly) then generating a sequence using that.
-			# Probably generating them randomly is what's messing it up (consider probabilities of specific uniformly random sequences)
-	# Bugs:
-		# gamma[l] sometimems sums to 0 (before normalisation) (I've patched this by setting gamma[l] to 1 in this case)
-		# same for xi[l]
+		# How to generate test sequences?
 
-def viterbis():
-	"""Returns the probability of a most probable path that produces X"""
-	v = np.zeros((k, L))
-	for i in range(1, k):
-		v[i][0] = 0
-	v[0][0] = 1
+def forward():
+	F = np.zeros((L, k))
+	for i in range(k):
+		F[0][i] = pi[i] * e[i][X[0]]
+	#F[0][0] = 1
 	for i in range(1, L):
 		for l in range(k):
-			v[l][i] = e[l][X[i]] * np.array([v[s][i - 1] * m[s][l] for s in range(k)]).max()
-	return np.array([v[l][L - 1] for l in range(k)]).max()
+			s = 0
+			for j in range(k):
+				s += F[i - 1][j] * m[j][l]
+			F[i][l] = e[l][X[i]] * s
+	print(F)
+	return F[L - 1].sum()
 
-k = 10
+k = 4
 L = 1000
-alphabet_size = 4
+alphabet_size = 2
 
 X = np.random.randint(0, alphabet_size, (L), dtype=int)
 #X = np.array([i % alphabet_size for i in range(L)])
+
+X = np.zeros((L), dtype=int)
+
+test_pi = np.random.uniform(0, 1, (k))
+test_pi /= test_pi.sum()
+
+test_m = np.random.uniform(0, 1, (k,k))
+for i in range(k):
+	test_m[i] /= test_m.sum()
+
+test_e = np.random.uniform(0, 1, (k, alphabet_size))
+for i in range(k):
+	test_e[i] /= test_e[i].sum()
+
+r = np.random.uniform(0, 1)
+state = -1
+for i in range(k):
+	if r <= test_pi[i]:
+		state = i
+		break
+	r -= test_pi[i]
+
+for l in range(L):
+	r = np.random.uniform(0, 1)
+	for i in range(alphabet_size):
+		if r <= test_e[state][i]:
+			X[l] = i
+			break
+		r -= test_e[state][i]
+	r = np.random.uniform(0, 1)
+	for i in range(k):
+		if r <= test_m[state][i]:
+			state = i
+			break
+		r -= test_m[state][i]
 
 #pi = np.ones((k))
 #m = np.ones((k,k))
@@ -40,44 +72,42 @@ m = np.full((k,k), 1/k)
 e = np.full((k,alphabet_size), 1/alphabet_size)'''
 
 pi = np.random.uniform(0, 1, (k))
-pi_s = pi.sum()
-for i in range(k):
-	pi[i] /= pi_s
+pi /= pi.sum()
 
 m = np.random.uniform(0, 1, (k,k))
 for i in range(k):
-	s = m[i].sum()
-	for j in range(k):
-		m[i][j] /= s
+	m[i] /= m[i].sum()
 
 e = np.random.uniform(0, 1, (k,alphabet_size))
 for i in range(k):
-	s = e[i].sum()
-	for j in range(alphabet_size):
-		e[i][j] /= s
+	e[i] /= e[i].sum()
+
 t = 0
 p = 0
 while True:
 	t += 1
 	alpha = np.zeros((L,k))
-	unscaled_alpha = np.zeros((L, k))
+	F = np.zeros((L, k))
 	beta = np.zeros((L,k))
 	gamma = np.zeros((L,k))
 	xi = np.zeros((L,k,k))
 
-	#gamma_prime = np.zeros((L))
 	xi_prime = np.zeros((L))
 
 	for i in range(k):
 		alpha[0][i] = pi[i] * e[i][X[0]]
+		F[0][i] = 0
 		beta[L - 1][i] = 1
+	F[0][0] = 1
 	for l in range(1, L):
 		for i in range(k):
 			s = 0
+			F_s = 0
 			for j in range(k):
 				s += alpha[l - 1][j] * m[j][i]
+				F_s += F[l - 1][j] * m[j][i]
 			alpha[l][i] = e[i][X[l]] * s
-			unscaled_alpha[l][i] = e[i][X[l]] * s
+			F[l][i] = e[i][X[l]] * F_s
 		alpha[l] /= alpha[l].sum()
 	for l in range(L - 2, -1, -1):
 		for i in range(k):
@@ -126,14 +156,10 @@ while True:
 				e[i][b] = s2 / s
 	for i in range(k):
 		m[i] /= m[i].sum()
-	new_p = unscaled_alpha[L - 1].sum()
-	if new_p <= p:
+	new_p = F[L - 1].sum()
+	if new_p > 0 and new_p <= p:
 		break
 	print(t, p)
 	p = new_p
 
 print(p)
-print()
-print(pi)
-print(m)
-print(e)
