@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 # This whole thing doesn't work
 
@@ -6,10 +7,11 @@ import numpy as np
 	# Try researching Baum-Welch intialisation
 	# Test it
 	# How to generate test sequences?
-		# Currently the only "random" option I have that actually gives a non-zero (no underflow) probability for L = 1000 is creating a random Markov Chain (i.e. alphabet_size states, each state determininstically emits a symbol)
 		# Could just do patterns and stuff (but that's a bit boring)
 		# Could try the method of random HMM and just leave it for ages
 		# Could email him and ask for advice
+
+duration = 5*60
 
 L = 100
 alphabet_size = 4
@@ -19,7 +21,7 @@ alphabet_size = 4
 
 X = np.zeros((L), dtype=int)
 
-r = 5
+r = 2
 X = []
 while len(X) < L:
 	for j in range(alphabet_size):
@@ -169,148 +171,104 @@ for l in range(1, L):
 
 print("OG probability:", F[L - 1].sum())'''
 
-min_states = 5
-max_states = 15
+k = 10
 
-pi = np.random.uniform(0, 1, (max_states))
+pi = np.random.uniform(0, 1, (k))
 pi /= pi.sum()
 
-m = np.random.uniform(0, 1, (max_states,max_states))
-for i in range(max_states):
+m = np.random.uniform(0, 1, (k,k))
+for i in range(k):
 	m[i] /= m[i].sum()
 
-e = np.random.uniform(0, 1, (max_states,alphabet_size))
-for i in range(max_states):
+e = np.random.uniform(0, 1, (k,alphabet_size))
+for i in range(k):
 	e[i] /= e[i].sum()
 
-initial = True
-last_random = True
-for k in range(max_states, min_states - 1, -1):
-	print("k =", k)
-	t = 0
-	p = 0.0
-	stuck = False
-	while True:
-		t += 1
-		alpha = np.zeros((L,k))
-		F = np.zeros((L, k))
-		beta = np.zeros((L,k))
-		gamma = np.zeros((L,k))
-		xi = np.zeros((L,k,k))
+t = 0
+p = 0.0
 
-		xi_prime = np.zeros((L))
+start = time.time()
 
+while True:
+	t += 1
+	alpha = np.zeros((L,k))
+	F = np.zeros((L, k))
+	beta = np.zeros((L,k))
+	gamma = np.zeros((L,k))
+	xi = np.zeros((L,k,k))
+
+	xi_prime = np.zeros((L))
+
+	for i in range(k):
+		alpha[0][i] = pi[i] * e[i][X[0]]
+		F[0][i] = pi[i] * e[i][X[0]]
+		beta[L - 1][i] = 1
+	#F[0][0] = 1
+	for l in range(1, L):
 		for i in range(k):
-			alpha[0][i] = pi[i] * e[i][X[0]]
-			F[0][i] = pi[i] * e[i][X[0]]
-			beta[L - 1][i] = 1
-		#F[0][0] = 1
-		for l in range(1, L):
-			for i in range(k):
-				s = 0
-				F_s = 0
-				for j in range(k):
-					s += alpha[l - 1][j] * m[j][i]
-					F_s += F[l - 1][j] * m[j][i]
-				alpha[l][i] = e[i][X[l]] * s
-				F[l][i] = e[i][X[l]] * F_s
-			if alpha[l].sum() == 0:
-				alpha[l] = np.ones((k))
-			alpha[l] /= alpha[l].sum()
-		for l in range(L - 2, -1, -1):
-			for i in range(k):
-				s = 0
-				for j in range(k):
-					s += beta[l+1][j] * m[i][j] * e[j][X[l+1]]
-				beta[l][i] = s
-			if beta[l].sum() == 0:
-				beta[l] = np.ones((k))
-			beta[l] /= beta[l].sum()
-		gamma = alpha * beta
-		for l in range(L):
-			s = gamma[l].sum()
-			if s == 0:
-				gamma[l] = np.ones((k))
-			else:
-				gamma[l] /= gamma[l].sum()
-
-		for i in range(k):
-			for j in range(k):
-				for l in range(L - 1):
-					xi[l][i][j] = alpha[l][i] * m[i][j] * e[j][X[l + 1]] * beta[l + 1][j]
-					xi_prime[l] += xi[l][i][j]
-
-		for l in range(L - 1):
-			if xi_prime[l] == 0:
-				xi[l] = np.ones((k, k))
-			else:
-				xi[l] /= xi_prime[l]
-
-		for i in range(k):
-			pi[i] = gamma[0][i]
 			s = 0
+			F_s = 0
+			for j in range(k):
+				s += alpha[l - 1][j] * m[j][i]
+				F_s += F[l - 1][j] * m[j][i]
+			alpha[l][i] = e[i][X[l]] * s
+			F[l][i] = e[i][X[l]] * F_s
+		if alpha[l].sum() == 0:
+			alpha[l] = np.ones((k))
+		alpha[l] /= alpha[l].sum()
+	for l in range(L - 2, -1, -1):
+		for i in range(k):
+			s = 0
+			for j in range(k):
+				s += beta[l+1][j] * m[i][j] * e[j][X[l+1]]
+			beta[l][i] = s
+		if beta[l].sum() == 0:
+			beta[l] = np.ones((k))
+		beta[l] /= beta[l].sum()
+	gamma = alpha * beta
+	for l in range(L):
+		s = gamma[l].sum()
+		if s == 0:
+			gamma[l] = np.ones((k))
+		else:
+			gamma[l] /= gamma[l].sum()
+
+	for i in range(k):
+		for j in range(k):
 			for l in range(L - 1):
-				s += gamma[l][i]
-			if s != 0:  # Why is s sometimes 0?
-				for j in range(k):
-					s2 = 0
-					for l in range(L - 1):
-						s2 += xi[l][i][j]
-					m[i][j] = s2 / s
-				s += gamma[L - 1][i]
-				for b in range(alphabet_size):
-					s2 = 0
-					for l in range(L):
-						if X[l] == b:
-							s2 += gamma[l][i]
-					e[i][b] = s2 / s
-		for i in range(k):
-			m[i] /= m[i].sum()
-		new_p = F[L - 1].sum()
-		print("\t", t, p)
-		if (new_p > 0 and new_p <= p) or t >= 50:
-			break
-		p = new_p
-	if initial or p >= best_p:
-		initial = False
-		best_p = p
-		best_pi = pi.copy()
-		best_m = m.copy()
-		best_e = e.copy()
-		if p >= 1:
-			break
-	if last_random or p >= prev_p:
-		print("Removing least probable")
-		last_random = False
-		# Remove least probable state
-		least_probable = -1
-		row = -1
-		for i in range(k):
-			s = 0
+				xi[l][i][j] = alpha[l][i] * m[i][j] * e[j][X[l + 1]] * beta[l + 1][j]
+				xi_prime[l] += xi[l][i][j]
+
+	for l in range(L - 1):
+		if xi_prime[l] == 0:
+			xi[l] = np.ones((k, k))
+		else:
+			xi[l] /= xi_prime[l]
+
+	for i in range(k):
+		pi[i] = gamma[0][i]
+		s = 0
+		for l in range(L - 1):
+			s += gamma[l][i]
+		if s != 0:  # Why is s sometimes 0?
 			for j in range(k):
-				s += m[j][i]
-			if least_probable == -1 or s < least_probable:
-				least_probable = s
-				col = i
-		#col = np.unravel_index(np.argmin(m), m.shape)[0]
-		m = np.delete(m, col, axis=0)
-		m = np.delete(m, col, axis=1)
-		e = np.delete(e, col, axis=0)
-		pi = np.delete(pi, col)
-	else:
-		print("Generating randomly")
-		last_random = True
-		pi = np.random.uniform(0, 1, (k-1))
-		pi /= pi.sum()
+				s2 = 0
+				for l in range(L - 1):
+					s2 += xi[l][i][j]
+				m[i][j] = s2 / s
+			s += gamma[L - 1][i]
+			for b in range(alphabet_size):
+				s2 = 0
+				for l in range(L):
+					if X[l] == b:
+						s2 += gamma[l][i]
+				e[i][b] = s2 / s
+	for i in range(k):
+		m[i] /= m[i].sum()
+	new_p = F[L - 1].sum()
+	print("\t", t, p)
+	if (new_p > 0 and new_p <= p) or time.time() - start > duration:
+		break
+	p = new_p
 
-		m = np.random.uniform(0, 1, (k-1,k-1))
-		for i in range(k-1):
-			m[i] /= m[i].sum()
-
-		e = np.random.uniform(0, 1, (k-1,alphabet_size))
-		for i in range(k-1):
-			e[i] /= e[i].sum()
-	prev_p = p
-
-print("best likelihood:", best_p)
-print("best number of states:", len(best_pi))
+print("likelihood:", p)
